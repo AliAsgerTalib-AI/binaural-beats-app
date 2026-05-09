@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fdfbf8;
+  --foreground: #4a3728;
+  /* Earth & Orange Palette */
+  --primary-orange: #d97745;
+  --primary-orange-light: #e89968;
+  --earth-brown: #8b6f47;
+  --earth-dark: #6b5344;
+  --earth-light: #c4a887;
+  --sand: #e8dcc8;
 }
 
 @theme inline {
@@ -14,8 +21,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #fdfbf8;
+    --foreground: #4a3728;
   }
 }
 
@@ -23,4 +30,49 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Custom slider styling */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d97745 0%, #e89968 100%);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(217, 119, 69, 0.4);
+  transition: all 0.2s;
+}
+
+input[type='range']::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(217, 119, 69, 0.6);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d97745 0%, #e89968 100%);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(217, 119, 69, 0.4);
+  transition: all 0.2s;
+}
+
+input[type='range']::-moz-range-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(217, 119, 69, 0.6);
+}
+
+/* Smooth scrolling for session history */
+.overflow-y-auto {
+  scroll-behavior: smooth;
 }
