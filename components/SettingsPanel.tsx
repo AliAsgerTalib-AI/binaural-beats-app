@@ -32,6 +32,14 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
     onSettingsChange({ ...settings, sex });
   };
 
+  const handleBrownianNoiseChange = (enabled: boolean) => {
+    onSettingsChange({ ...settings, brownianNoiseEnabled: enabled });
+  };
+
+  const handlePinkNoiseChange = (enabled: boolean) => {
+    onSettingsChange({ ...settings, pinkNoiseEnabled: enabled });
+  };
+
   useEffect(() => {
     if (session?.user) {
       fetchHealthMetrics();
@@ -183,6 +191,53 @@ export default function SettingsPanel({ settings, onSettingsChange, onClose }: S
         </div>
         <p className="text-xs text-amber-700">
           Note: Currently used for display only. Carrier recommendations are age-based.
+        </p>
+      </div>
+
+      {/* Noise Settings */}
+      <div className="space-y-3">
+        <label className="block text-sm font-semibold text-amber-900 uppercase tracking-wider">
+          Masking Noise
+        </label>
+
+        {/* Brownian Noise Checkbox */}
+        <div className="p-4 rounded-lg bg-blue-50 border-2 border-blue-200">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.brownianNoiseEnabled ?? true}
+              onChange={(e) => handleBrownianNoiseChange(e.target.checked)}
+              className="w-5 h-5 rounded accent-blue-600"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-blue-800">Enable Brownian Noise</p>
+              <p className="text-xs text-blue-600 mt-0.5">
+                For Delta band (0.5–4 Hz) • Deep, low-frequency emphasis (-6dB/octave)
+              </p>
+            </div>
+          </label>
+        </div>
+
+        {/* Pink Noise Checkbox */}
+        <div className="p-4 rounded-lg bg-pink-50 border-2 border-pink-200">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.pinkNoiseEnabled ?? true}
+              onChange={(e) => handlePinkNoiseChange(e.target.checked)}
+              className="w-5 h-5 rounded accent-pink-600"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-pink-800">Enable Pink Noise</p>
+              <p className="text-xs text-pink-600 mt-0.5">
+                For Alpha band (8–12 Hz) • Balanced natural sound (wind, rain)
+              </p>
+            </div>
+          </label>
+        </div>
+
+        <p className="text-xs text-amber-700 mt-3">
+          <strong>Note:</strong> When enabled, noise will automatically activate for optimized frequency bands. Disable to use binaural beats alone.
         </p>
       </div>
 

@@ -178,6 +178,8 @@ export default function Home() {
                 duration={selectedDuration}
                 onComplete={handleSessionComplete}
                 onCancel={() => setIsSessionActive(false)}
+                brownianNoiseEnabled={settings.brownianNoiseEnabled ?? true}
+                pinkNoiseEnabled={settings.pinkNoiseEnabled ?? true}
               />
             )}
 

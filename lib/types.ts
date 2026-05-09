@@ -13,6 +13,8 @@ export interface FrequencyBandConfig {
 export interface UserSettings {
   age: number;
   sex: Sex;
+  brownianNoiseEnabled?: boolean;
+  pinkNoiseEnabled?: boolean;
 }
 
 export interface SessionHistory {

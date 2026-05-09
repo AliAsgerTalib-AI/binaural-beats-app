@@ -12,6 +12,8 @@ interface SessionTimerProps {
   duration: number; // in minutes
   onComplete: () => void;
   onCancel: () => void;
+  brownianNoiseEnabled: boolean;
+  pinkNoiseEnabled: boolean;
 }
 
 export default function SessionTimer({
@@ -21,6 +23,8 @@ export default function SessionTimer({
   duration,
   onComplete,
   onCancel,
+  brownianNoiseEnabled,
+  pinkNoiseEnabled,
 }: SessionTimerProps) {
   const [timeLeft, setTimeLeft] = useState(duration * 60); // in seconds
   const [isPaused, setIsPaused] = useState(false);
@@ -37,20 +41,24 @@ export default function SessionTimer({
   // Determine frequency band and applicable noise type
   const isDeltaFrequency = beatFrequency >= 0.5 && beatFrequency < 4;
   const isAlphaFrequency = beatFrequency >= 8 && beatFrequency <= 12;
-  const noiseApplicable = isDeltaFrequency || isAlphaFrequency;
+
+  // Check if noise type is enabled in settings
+  const isBrownianAllowed = isDeltaFrequency && brownianNoiseEnabled;
+  const isPinkAllowed = isAlphaFrequency && pinkNoiseEnabled;
+  const noiseApplicable = isBrownianAllowed || isPinkAllowed;
 
   // Auto-select and enable appropriate noise type
   useEffect(() => {
-    if (isDeltaFrequency) {
+    if (isBrownianAllowed) {
       setNoiseType('brownian');
       setUseNoise(true);
-    } else if (isAlphaFrequency) {
+    } else if (isPinkAllowed) {
       setNoiseType('pink');
       setUseNoise(true);
     } else {
       setUseNoise(false);
     }
-  }, [isDeltaFrequency, isAlphaFrequency]);
+  }, [isBrownianAllowed, isPinkAllowed]);
 
   useEffect(() => {
     if (isPaused) {
@@ -179,7 +187,7 @@ export default function SessionTimer({
         </p>
       </div>
 
-      {/* Noise Toggle - Frequency-Specific */}
+      {/* Noise Toggle - Settings & Frequency-Specific */}
       {noiseApplicable ? (
         <div className="p-4 rounded-lg bg-green-50 border-2 border-green-300">
           <label className="flex items-center gap-3 cursor-pointer">
@@ -212,9 +220,20 @@ export default function SessionTimer({
               className="w-5 h-5 rounded cursor-not-allowed opacity-50"
             />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-800">Noise Not Recommended</p>
+              <p className="text-sm font-semibold text-amber-800">Noise Not Available</p>
               <p className="text-xs text-amber-700 mt-0.5">
-                Noise support is optimized for Delta (0.5-4 Hz) and Alpha (8-12 Hz). Current: {beatFrequency} Hz
+                {isDeltaFrequency && !brownianNoiseEnabled && (
+                  <>Brownian Noise is disabled in settings</>
+                )}
+                {isAlphaFrequency && !pinkNoiseEnabled && (
+                  <>Pink Noise is disabled in settings</>
+                )}
+                {!isDeltaFrequency && !isAlphaFrequency && (
+                  <>Noise support is optimized for Delta (0.5-4 Hz) and Alpha (8-12 Hz). Current: {beatFrequency} Hz</>
+                )}
+              </p>
+              <p className="text-xs text-amber-600 mt-2">
+                Enable noise in Settings to use it for this frequency.
               </p>
             </div>
           </div>
