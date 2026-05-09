@@ -25,6 +25,7 @@ export default function SessionTimer({
   const [timeLeft, setTimeLeft] = useState(duration * 60); // in seconds
   const [isPaused, setIsPaused] = useState(false);
   const [volume, setVolumeState] = useState(0.3); // 30% default
+  const [usePinkNoise, setUsePinkNoise] = useState(false);
 
   const totalSeconds = duration * 60;
   const progress = ((totalSeconds - timeLeft) / totalSeconds) * 100;
@@ -32,13 +33,26 @@ export default function SessionTimer({
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
+  // Determine if current frequency is alpha and pink noise is applicable
+  const isAlphaFrequency = beatFrequency >= 8 && beatFrequency <= 12;
+  const pinkNoiseApplicable = isAlphaFrequency;
+
+  // Auto-enable pink noise for alpha, auto-disable for others
+  useEffect(() => {
+    if (isAlphaFrequency && !usePinkNoise) {
+      setUsePinkNoise(true);
+    } else if (!isAlphaFrequency && usePinkNoise) {
+      setUsePinkNoise(false);
+    }
+  }, [isAlphaFrequency]);
+
   useEffect(() => {
     if (isPaused) {
       stopBinauralBeats();
       return;
     }
 
-    startBinauralBeats(carrierFrequency, carrierFrequency + beatFrequency, volume);
+    startBinauralBeats(carrierFrequency, carrierFrequency + beatFrequency, volume, usePinkNoise);
 
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
@@ -56,7 +70,7 @@ export default function SessionTimer({
       clearInterval(interval);
       stopBinauralBeats();
     };
-  }, [isPaused, carrierFrequency, beatFrequency, volume, onComplete]);
+  }, [isPaused, carrierFrequency, beatFrequency, volume, usePinkNoise, onComplete]);
 
   const handleVolumeChange = (newVolume: number) => {
     setVolumeState(newVolume);
@@ -158,6 +172,44 @@ export default function SessionTimer({
           Recommended: 40-50% for comfort. Range: 0-100%
         </p>
       </div>
+
+      {/* Pink Noise Toggle - Frequency-Specific */}
+      {pinkNoiseApplicable ? (
+        <div className="p-4 rounded-lg bg-green-50 border-2 border-green-300">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={usePinkNoise}
+              onChange={(e) => setUsePinkNoise(e.target.checked)}
+              disabled={isPaused}
+              className="w-5 h-5 rounded accent-green-600"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-green-800">✓ Pink Noise (Recommended)</p>
+              <p className="text-xs text-green-700 mt-0.5">
+                Enhances alpha synchronization • Balanced natural sound (wind, rain)
+              </p>
+            </div>
+          </label>
+        </div>
+      ) : (
+        <div className="p-4 rounded-lg bg-amber-50 border-2 border-amber-300">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={usePinkNoise}
+              disabled={true}
+              className="w-5 h-5 rounded cursor-not-allowed opacity-50"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-800">Pink Noise Not Recommended</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Pink noise is frequency-specific and recommended only for alpha (8-12 Hz). Current: {beatFrequency} Hz
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Info Message */}
       <div className="p-3 rounded-lg bg-orange-100 border-2 border-orange-300 text-center">
