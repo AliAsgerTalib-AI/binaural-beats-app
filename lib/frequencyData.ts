@@ -1,4 +1,4 @@
-import { FrequencyBand, FrequencyBandConfig } from './types';
+import { FrequencyBand, FrequencyBandConfig, Sex } from './types';
 
 export const frequencyBands: Record<FrequencyBand, FrequencyBandConfig> = {
   delta: {
@@ -73,3 +73,61 @@ export const getCarrierRange = (band: FrequencyBand): { min: number; max: number
   };
   return ranges[band];
 };
+
+// Determine which band a beat frequency falls into
+export const getBandFromBeatFrequency = (beatFreq: number): FrequencyBand => {
+  if (beatFreq <= 4) return 'delta';
+  if (beatFreq <= 8) return 'theta';
+  if (beatFreq <= 12) return 'alpha';
+  if (beatFreq <= 30) return 'beta';
+  return 'gamma';
+};
+
+// Calculate optimal left and right frequencies from beat frequency
+export const getFrequenciesFromBeatFrequency = (
+  beatFrequency: number,
+  age: number,
+  sex: Sex
+): { leftFreq: number; rightFreq: number; band: FrequencyBand } => {
+  const band = getBandFromBeatFrequency(beatFrequency);
+
+  // Get optimal carrier based on age and sex
+  let baseCarrier = frequencyBands[band].optimalCarrier;
+
+  // Age adjustment (presbycusis)
+  if (age >= 65) {
+    baseCarrier *= 0.85;
+  } else if (age >= 51) {
+    baseCarrier *= 0.9;
+  } else if (age >= 36) {
+    baseCarrier *= 0.95;
+  }
+
+  // Sex adjustment (research shows women typically have slightly higher hearing sensitivity)
+  // but this is subtle and individual variation is large; keep it minimal
+  if (sex === 'female') {
+    baseCarrier *= 0.98; // Slight adjustment
+  }
+
+  // Ensure frequencies are in human hearing range (20-20000 Hz)
+  const leftFreq = Math.max(20, Math.min(20000, Math.round(baseCarrier)));
+  const rightFreq = Math.max(20, Math.min(20000, Math.round(baseCarrier + beatFrequency)));
+
+  return { leftFreq, rightFreq, band };
+};
+
+// Get recommended beat frequencies for common use cases
+export const getRecommendedBeatFrequencies = (): Array<{
+  beatFreq: number;
+  label: string;
+  use: string;
+}> => [
+  { beatFreq: 1.5, label: '1.5 Hz', use: 'Deep sleep, pain relief' },
+  { beatFreq: 3, label: '3 Hz', use: 'Sleep onset, memory consolidation' },
+  { beatFreq: 6, label: '6 Hz', use: 'Meditation, stress relief' },
+  { beatFreq: 7, label: '7 Hz', use: 'Creative flow, learning' },
+  { beatFreq: 10, label: '10 Hz', use: 'Relaxed focus, light meditation' },
+  { beatFreq: 15, label: '15 Hz', use: 'Problem-solving, alertness' },
+  { beatFreq: 20, label: '20 Hz', use: 'Mental clarity, focus' },
+  { beatFreq: 40, label: '40 Hz', use: 'Peak cognition, intense focus' },
+];

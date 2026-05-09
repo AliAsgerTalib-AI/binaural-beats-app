@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { FrequencyBand, UserSettings, SessionHistory } from '@/lib/types';
-import { frequencyBands, getOptimalCarrier, getCarrierRange } from '@/lib/frequencyData';
+import { UserSettings, SessionHistory } from '@/lib/types';
+import { frequencyBands, getFrequenciesFromBeatFrequency } from '@/lib/frequencyData';
 import { useLocalStorage } from '@/lib/useLocalStorage';
 import { customizeFrequencies } from '@/lib/customizationAlgorithm';
-import BandSelector from '@/components/BandSelector';
-import CarrierFrequencyControl from '@/components/CarrierFrequencyControl';
+import BeatFrequencySelector from '@/components/BeatFrequencySelector';
 import TimerSelector from '@/components/TimerSelector';
 import SessionTimer from '@/components/SessionTimer';
 import SettingsPanel from '@/components/SettingsPanel';
@@ -29,34 +28,34 @@ export default function Home() {
   const [settings, setSettings] = useLocalStorage<UserSettings>('binaural_settings', DEFAULT_SETTINGS);
   const [sessions, setSessions] = useLocalStorage<SessionHistory[]>('binaural_sessions', []);
 
-  const [selectedBand, setSelectedBand] = useState<FrequencyBand>('theta');
-  const [carrierFrequency, setCarrierFrequency] = useState<number>(
-    getOptimalCarrier(DEFAULT_SETTINGS.age, 'theta')
-  );
+  const [beatFrequency, setBeatFrequency] = useState<number>(7); // Default: 7 Hz (theta)
   const [selectedDuration, setSelectedDuration] = useState<number>(30);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [healthMetrics, setHealthMetrics] = useState<HealthMetrics | null>(null);
   const [customizationNote, setCustomizationNote] = useState<string | null>(null);
 
-  // Update carrier frequency when band or age changes
-  useEffect(() => {
-    let optimal = getOptimalCarrier(settings.age, selectedBand);
+  // Derive frequencies from beat frequency
+  const { leftFreq: carrierFrequency, rightFreq: rightFrequency, band: selectedBand } = getFrequenciesFromBeatFrequency(
+    beatFrequency,
+    settings.age,
+    settings.sex
+  );
 
-    // Apply customization if health data available
+  // Check for customization notes based on health metrics
+  useEffect(() => {
     if (healthMetrics) {
       const customized = customizeFrequencies(
         selectedBand,
         settings.age,
         healthMetrics,
-        optimal
+        carrierFrequency
       );
-      optimal = customized.carrierFrequency;
       setCustomizationNote(customized.recommendation);
+    } else {
+      setCustomizationNote(null);
     }
-
-    setCarrierFrequency(optimal);
-  }, [selectedBand, settings.age, healthMetrics]);
+  }, [selectedBand, settings.age, healthMetrics, carrierFrequency]);
 
   // Fetch health metrics when session is available
   useEffect(() => {
@@ -81,14 +80,6 @@ export default function Home() {
     }
   }, [session]);
 
-  const handleBandChange = (band: FrequencyBand) => {
-    setSelectedBand(band);
-  };
-
-  const handleCarrierChange = (frequency: number) => {
-    setCarrierFrequency(frequency);
-  };
-
   const handleSessionComplete = () => {
     const newSession: SessionHistory = {
       id: `session_${Date.now()}`,
@@ -97,13 +88,11 @@ export default function Home() {
       duration: selectedDuration,
       timestamp: Date.now(),
       completed: true,
+      beatFrequency, // Store beat frequency for future reference
     };
     setSessions([...sessions, newSession]);
     setIsSessionActive(false);
   };
-
-  const currentBand = frequencyBands[selectedBand];
-  const carrierRange = getCarrierRange(selectedBand);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-orange-50 to-yellow-50">
@@ -138,14 +127,15 @@ export default function Home() {
           />
         ) : (
           <>
-            {/* Frequency Band Selection */}
+            {/* Beat Frequency Selector */}
             <section className="mb-8">
               <h2 className="text-sm font-semibold text-amber-900 uppercase tracking-wider mb-4">
-                Select Frequency Band
+                Choose Your Beat Frequency
               </h2>
-              <BandSelector
-                selectedBand={selectedBand}
-                onBandChange={handleBandChange}
+              <BeatFrequencySelector
+                beatFrequency={beatFrequency}
+                onBeatFrequencyChange={setBeatFrequency}
+                settings={settings}
                 disabled={isSessionActive}
               />
             </section>
@@ -157,40 +147,6 @@ export default function Home() {
                 <p className="text-xs text-green-700 mt-1">{customizationNote}</p>
               </section>
             )}
-
-            {/* Band Info Card */}
-            <section className="mb-8 p-6 rounded-xl bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 shadow-md">
-              <div className="text-center">
-                <div className="text-5xl mb-2">{currentBand.icon}</div>
-                <h3 className="text-xl font-bold text-orange-700 mb-1">{currentBand.name}</h3>
-                <p className="text-sm text-amber-900 mb-3">{currentBand.description}</p>
-                <p className="text-xs text-amber-700 mb-4">
-                  Beat Frequency: {currentBand.beatFreq.min}-{currentBand.beatFreq.max} Hz
-                </p>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {currentBand.benefits.map((benefit) => (
-                    <span key={benefit} className="px-2 py-1 rounded-full bg-orange-200 text-orange-900 text-xs font-medium">
-                      {benefit}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* Carrier Frequency Control */}
-            <section className="mb-8">
-              <h2 className="text-sm font-semibold text-amber-900 uppercase tracking-wider mb-4">
-                Carrier Frequency
-              </h2>
-              <CarrierFrequencyControl
-                carrierFrequency={carrierFrequency}
-                onCarrierChange={handleCarrierChange}
-                min={carrierRange.min}
-                max={carrierRange.max}
-                optimal={getOptimalCarrier(settings.age, selectedBand)}
-                disabled={isSessionActive}
-              />
-            </section>
 
             {/* Timer Selection or Active Session */}
             {!isSessionActive ? (
@@ -218,7 +174,7 @@ export default function Home() {
               <SessionTimer
                 band={selectedBand}
                 carrierFrequency={carrierFrequency}
-                beatFrequency={Math.round((currentBand.beatFreq.min + currentBand.beatFreq.max) / 2)}
+                beatFrequency={beatFrequency}
                 duration={selectedDuration}
                 onComplete={handleSessionComplete}
                 onCancel={() => setIsSessionActive(false)}

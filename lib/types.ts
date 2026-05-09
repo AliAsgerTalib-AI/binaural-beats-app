@@ -22,6 +22,7 @@ export interface SessionHistory {
   duration: number; // in minutes
   timestamp: number;
   completed: boolean;
+  beatFrequency?: number; // Added for beat frequency tracking
 }
 
 export interface AppState {
