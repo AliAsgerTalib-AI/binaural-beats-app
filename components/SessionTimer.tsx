@@ -25,7 +25,8 @@ export default function SessionTimer({
   const [timeLeft, setTimeLeft] = useState(duration * 60); // in seconds
   const [isPaused, setIsPaused] = useState(false);
   const [volume, setVolumeState] = useState(0.3); // 30% default
-  const [usePinkNoise, setUsePinkNoise] = useState(false);
+  const [useNoise, setUseNoise] = useState(false);
+  const [noiseType, setNoiseType] = useState<'pink' | 'brownian'>('pink');
 
   const totalSeconds = duration * 60;
   const progress = ((totalSeconds - timeLeft) / totalSeconds) * 100;
@@ -33,18 +34,23 @@ export default function SessionTimer({
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
-  // Determine if current frequency is alpha and pink noise is applicable
+  // Determine frequency band and applicable noise type
+  const isDeltaFrequency = beatFrequency >= 0.5 && beatFrequency < 4;
   const isAlphaFrequency = beatFrequency >= 8 && beatFrequency <= 12;
-  const pinkNoiseApplicable = isAlphaFrequency;
+  const noiseApplicable = isDeltaFrequency || isAlphaFrequency;
 
-  // Auto-enable pink noise for alpha, auto-disable for others
+  // Auto-select and enable appropriate noise type
   useEffect(() => {
-    if (isAlphaFrequency && !usePinkNoise) {
-      setUsePinkNoise(true);
-    } else if (!isAlphaFrequency && usePinkNoise) {
-      setUsePinkNoise(false);
+    if (isDeltaFrequency) {
+      setNoiseType('brownian');
+      setUseNoise(true);
+    } else if (isAlphaFrequency) {
+      setNoiseType('pink');
+      setUseNoise(true);
+    } else {
+      setUseNoise(false);
     }
-  }, [isAlphaFrequency]);
+  }, [isDeltaFrequency, isAlphaFrequency]);
 
   useEffect(() => {
     if (isPaused) {
@@ -52,7 +58,7 @@ export default function SessionTimer({
       return;
     }
 
-    startBinauralBeats(carrierFrequency, carrierFrequency + beatFrequency, volume, usePinkNoise);
+    startBinauralBeats(carrierFrequency, carrierFrequency + beatFrequency, volume, useNoise, noiseType);
 
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
@@ -70,7 +76,7 @@ export default function SessionTimer({
       clearInterval(interval);
       stopBinauralBeats();
     };
-  }, [isPaused, carrierFrequency, beatFrequency, volume, usePinkNoise, onComplete]);
+  }, [isPaused, carrierFrequency, beatFrequency, volume, useNoise, noiseType, onComplete]);
 
   const handleVolumeChange = (newVolume: number) => {
     setVolumeState(newVolume);
@@ -173,21 +179,25 @@ export default function SessionTimer({
         </p>
       </div>
 
-      {/* Pink Noise Toggle - Frequency-Specific */}
-      {pinkNoiseApplicable ? (
+      {/* Noise Toggle - Frequency-Specific */}
+      {noiseApplicable ? (
         <div className="p-4 rounded-lg bg-green-50 border-2 border-green-300">
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
-              checked={usePinkNoise}
-              onChange={(e) => setUsePinkNoise(e.target.checked)}
+              checked={useNoise}
+              onChange={(e) => setUseNoise(e.target.checked)}
               disabled={isPaused}
               className="w-5 h-5 rounded accent-green-600"
             />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-green-800">✓ Pink Noise (Recommended)</p>
+              <p className="text-sm font-semibold text-green-800">
+                ✓ {noiseType === 'brownian' ? 'Brownian Noise' : 'Pink Noise'} (Recommended)
+              </p>
               <p className="text-xs text-green-700 mt-0.5">
-                Enhances alpha synchronization • Balanced natural sound (wind, rain)
+                {noiseType === 'brownian'
+                  ? 'Supports delta entrainment • Deep, low-frequency emphasis (-6dB/octave)'
+                  : 'Enhances alpha synchronization • Balanced natural sound (wind, rain)'}
               </p>
             </div>
           </label>
@@ -197,14 +207,14 @@ export default function SessionTimer({
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
-              checked={usePinkNoise}
+              checked={useNoise}
               disabled={true}
               className="w-5 h-5 rounded cursor-not-allowed opacity-50"
             />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-800">Pink Noise Not Recommended</p>
+              <p className="text-sm font-semibold text-amber-800">Noise Not Recommended</p>
               <p className="text-xs text-amber-700 mt-0.5">
-                Pink noise is frequency-specific and recommended only for alpha (8-12 Hz). Current: {beatFrequency} Hz
+                Noise support is optimized for Delta (0.5-4 Hz) and Alpha (8-12 Hz). Current: {beatFrequency} Hz
               </p>
             </div>
           </div>
