@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FrequencyBand } from '@/lib/types';
-import { frequencyBands } from '@/lib/frequencyData';
-import { startBinauralBeats, stopBinauralBeats, setVolume } from '@/lib/audioSynthesis';
+import { FrequencyBand, AudioMode, FadeConfig, Sex } from '@/lib/types';
+import { frequencyBands, getFrequenciesFromBeatFrequency } from '@/lib/frequencyData';
+import { startBinauralBeats, stopBinauralBeats, startIsochronicTones, stopIsochronicTones, setVolume } from '@/lib/audioSynthesis';
 
 interface SessionTimerProps {
   band: FrequencyBand;
@@ -14,6 +14,11 @@ interface SessionTimerProps {
   onCancel: () => void;
   brownianNoiseEnabled: boolean;
   pinkNoiseEnabled: boolean;
+  audioMode: AudioMode;
+  fadeIn: FadeConfig;
+  fadeOut: FadeConfig;
+  age: number;
+  sex: Sex;
 }
 
 export default function SessionTimer({
@@ -25,6 +30,11 @@ export default function SessionTimer({
   onCancel,
   brownianNoiseEnabled,
   pinkNoiseEnabled,
+  audioMode,
+  fadeIn,
+  fadeOut,
+  age,
+  sex,
 }: SessionTimerProps) {
   const [timeLeft, setTimeLeft] = useState(duration * 60); // in seconds
   const [isPaused, setIsPaused] = useState(false);
@@ -38,9 +48,15 @@ export default function SessionTimer({
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
+  // Frequency band thresholds for noise recommendations
+  const FREQUENCY_BANDS = {
+    DELTA: { min: 0.5, max: 4 },
+    ALPHA: { min: 8, max: 12 },
+  } as const;
+
   // Determine frequency band and applicable noise type
-  const isDeltaFrequency = beatFrequency >= 0.5 && beatFrequency < 4;
-  const isAlphaFrequency = beatFrequency >= 8 && beatFrequency <= 12;
+  const isDeltaFrequency = beatFrequency >= FREQUENCY_BANDS.DELTA.min && beatFrequency < FREQUENCY_BANDS.DELTA.max;
+  const isAlphaFrequency = beatFrequency >= FREQUENCY_BANDS.ALPHA.min && beatFrequency <= FREQUENCY_BANDS.ALPHA.max;
 
   // Check if noise type is enabled in settings
   const isBrownianAllowed = isDeltaFrequency && brownianNoiseEnabled;
@@ -60,19 +76,78 @@ export default function SessionTimer({
     }
   }, [isBrownianAllowed, isPinkAllowed]);
 
+  // Effect: Handle pause/resume
   useEffect(() => {
     if (isPaused) {
-      stopBinauralBeats();
-      return;
+      if (audioMode === 'binaural') {
+        stopBinauralBeats();
+      } else {
+        stopIsochronicTones();
+      }
+    }
+  }, [isPaused, audioMode]);
+
+  // Effect: Start audio when not paused
+  useEffect(() => {
+    if (isPaused) return;
+
+    if (audioMode === 'binaural') {
+      // Calculate fade in frequencies
+      let fadeInAudio;
+      if (fadeIn.enabled) {
+        const startLeft = fadeIn.beatFreq === 0
+          ? carrierFrequency
+          : getFrequenciesFromBeatFrequency(fadeIn.beatFreq, age, sex).leftFreq;
+        const startRight = fadeIn.beatFreq === 0
+          ? carrierFrequency
+          : startLeft + fadeIn.beatFreq;
+        fadeInAudio = { startLeft, startRight, duration: fadeIn.duration * 60 };
+      }
+
+      // Calculate fade out frequencies
+      let fadeOutAudio;
+      if (fadeOut.enabled) {
+        const endLeft = fadeOut.beatFreq === 0
+          ? carrierFrequency
+          : getFrequenciesFromBeatFrequency(fadeOut.beatFreq, age, sex).leftFreq;
+        const endRight = fadeOut.beatFreq === 0
+          ? carrierFrequency
+          : endLeft + fadeOut.beatFreq;
+        fadeOutAudio = { endLeft, endRight, duration: fadeOut.duration * 60, sessionDuration: duration * 60 };
+      }
+
+      startBinauralBeats(carrierFrequency, carrierFrequency + beatFrequency, volume, useNoise, noiseType, fadeInAudio, fadeOutAudio);
+    } else {
+      startIsochronicTones(carrierFrequency, beatFrequency, duration * 60, volume, useNoise, noiseType);
     }
 
-    startBinauralBeats(carrierFrequency, carrierFrequency + beatFrequency, volume, useNoise, noiseType);
+    return () => {
+      if (audioMode === 'binaural') {
+        stopBinauralBeats();
+      } else {
+        stopIsochronicTones();
+      }
+    };
+  }, [isPaused, carrierFrequency, beatFrequency, volume, useNoise, noiseType, audioMode, duration, fadeIn, fadeOut, age, sex]);
+
+  // Effect: Handle volume changes
+  useEffect(() => {
+    setVolume(volume);
+  }, [volume]);
+
+  // Effect: Manage timer countdown
+  useEffect(() => {
+    if (isPaused) return;
 
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          stopBinauralBeats();
+          if (audioMode === 'binaural') {
+            stopBinauralBeats();
+          } else {
+            stopIsochronicTones();
+          }
           onComplete();
           return 0;
         }
@@ -82,9 +157,8 @@ export default function SessionTimer({
 
     return () => {
       clearInterval(interval);
-      stopBinauralBeats();
     };
-  }, [isPaused, carrierFrequency, beatFrequency, volume, useNoise, noiseType, onComplete]);
+  }, [isPaused, audioMode, onComplete]);
 
   const handleVolumeChange = (newVolume: number) => {
     setVolumeState(newVolume);
@@ -243,10 +317,12 @@ export default function SessionTimer({
       {/* Info Message */}
       <div className="p-3 rounded-lg bg-orange-100 border-2 border-orange-300 text-center">
         <p className="text-xs text-orange-700 font-medium">
-          {isPaused ? '⏸ Session paused (audio stopped)' : '🔊 Audio playing - binaural beats active'}
+          {isPaused ? '⏸ Session paused (audio stopped)' : `🔊 Audio playing - ${audioMode === 'binaural' ? 'binaural beats' : 'isochronic tones'} active`}
         </p>
         <p className="text-xs text-amber-700 mt-2">
-          Beat frequency: {beatFrequency} Hz | Left: {carrierFrequency} Hz | Right: {carrierFrequency + beatFrequency} Hz
+          {audioMode === 'binaural'
+            ? `Beat: ${beatFrequency} Hz | L: ${carrierFrequency} Hz | R: ${carrierFrequency + beatFrequency} Hz`
+            : `Pulse: ${beatFrequency} Hz | Carrier: ${carrierFrequency} Hz`}
         </p>
       </div>
     </div>

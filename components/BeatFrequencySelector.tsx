@@ -8,6 +8,10 @@ import {
   frequencyBands,
 } from '@/lib/frequencyData';
 
+// Threshold for detecting when user is near 40 Hz (neuroprotection frequency)
+const NEUROPROTECTION_FREQUENCY = 40;
+const FREQUENCY_MATCH_THRESHOLD = 0.5;
+
 interface BeatFrequencySelectorProps {
   beatFrequency: number;
   onBeatFrequencyChange: (frequency: number) => void;
@@ -23,14 +27,13 @@ export default function BeatFrequencySelector({
 }: BeatFrequencySelectorProps) {
   const [customValue, setCustomValue] = useState(beatFrequency);
 
-  const { leftFreq, rightFreq, band } = getFrequenciesFromBeatFrequency(
+  const { band } = getFrequenciesFromBeatFrequency(
     beatFrequency,
     settings.age,
     settings.sex
   );
 
   const recommendations = getRecommendedBeatFrequencies();
-  const currentBand = frequencyBands[band];
 
   const handleCustomChange = (value: number) => {
     setCustomValue(value);
@@ -74,34 +77,34 @@ export default function BeatFrequencySelector({
         </div>
       </div>
 
-      {/* Combined Presets and All Options */}
+      {/* Frequency Preset Dropdown */}
       <div>
         <label className="block text-xs font-semibold text-amber-900 uppercase tracking-wider mb-3">
-          Frequency Presets
+          Frequency Preset
         </label>
-        <div className="grid grid-cols-3 gap-2">
+        <select
+          value={recommendations.find(r => r.beatFreq === beatFrequency)?.beatFreq ?? ''}
+          onChange={(e) => {
+            if (e.target.value) handleCustomChange(parseFloat(e.target.value));
+          }}
+          disabled={disabled}
+          className="w-full px-3 py-2 rounded-lg border-2 border-orange-300 bg-white text-orange-700 font-semibold appearance-none cursor-pointer focus:outline-none focus:border-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <option value="">Custom ({beatFrequency.toFixed(1)} Hz)</option>
           {recommendations.map((rec) => (
-            <button
-              key={rec.beatFreq}
-              onClick={() => {
-                handleCustomChange(rec.beatFreq);
-              }}
-              disabled={disabled}
-              className={`p-3 rounded-lg transition-all border-2 text-center ${
-                beatFrequency === rec.beatFreq
-                  ? 'bg-orange-500 border-orange-600 text-white shadow-lg'
-                  : 'bg-white border-orange-200 hover:border-orange-400 text-orange-700'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              <div className="font-bold text-sm">{rec.label}</div>
-              <div className="text-xs mt-1 opacity-75">{rec.use.split(',')[0]}</div>
-            </button>
+            <option key={rec.beatFreq} value={rec.beatFreq}>
+              {rec.label} — {rec.use.split(',')[0]}
+            </option>
           ))}
-        </div>
+        </select>
       </div>
 
       {/* Custom Frequency Slider */}
-      <div className="p-4 rounded-lg bg-orange-50 border-2 border-orange-200 space-y-3">
+      <div className={`p-4 rounded-lg space-y-3 ${
+        Math.abs(customValue - NEUROPROTECTION_FREQUENCY) < FREQUENCY_MATCH_THRESHOLD
+          ? 'bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-400'
+          : 'bg-orange-50 border-2 border-orange-200'
+      }`}>
         <div className="flex items-center justify-between">
           <label className="text-sm font-semibold text-orange-700">
             Beat Frequency (Hz)
@@ -134,63 +137,23 @@ export default function BeatFrequencySelector({
           }}
         />
 
-        <div className="text-xs text-orange-700 space-y-1">
-          <p>δ Delta: 0.5-4 Hz | θ Theta: 6-8 Hz | α Alpha: 8-12 Hz</p>
-          <p>β Beta: 12-30 Hz | γ Gamma: 30-100 Hz</p>
-        </div>
-      </div>
-
-      {/* Frequency Display Card */}
-      <div className="p-5 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-orange-300 shadow-md space-y-4">
-        {/* Band Info */}
-        <div className="text-center pb-4 border-b-2 border-orange-200">
-          <div className="text-3xl mb-2">{currentBand.icon}</div>
-          <h3 className="text-lg font-bold text-orange-700">{currentBand.name} Band</h3>
-          <p className="text-xs text-amber-700 mt-1">{currentBand.description}</p>
-        </div>
-
-        {/* Frequency Details */}
-        <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div className="p-3 rounded-lg bg-white border-2 border-orange-200">
-              <div className="text-xs text-amber-700 font-semibold mb-1">Beat</div>
-              <div className="text-2xl font-bold text-orange-600">{beatFrequency.toFixed(1)}</div>
-              <div className="text-xs text-amber-600">Hz</div>
-            </div>
-            <div className="p-3 rounded-lg bg-white border-2 border-blue-200">
-              <div className="text-xs text-blue-700 font-semibold mb-1">Left</div>
-              <div className="text-2xl font-bold text-blue-600">{leftFreq}</div>
-              <div className="text-xs text-blue-600">Hz</div>
-            </div>
-            <div className="p-3 rounded-lg bg-white border-2 border-purple-200">
-              <div className="text-xs text-purple-700 font-semibold mb-1">Right</div>
-              <div className="text-2xl font-bold text-purple-600">{rightFreq}</div>
-              <div className="text-xs text-purple-600">Hz</div>
-            </div>
-          </div>
-
-          {/* Benefits */}
-          <div className="flex flex-wrap gap-2 justify-center">
-            {currentBand.benefits.map((benefit) => (
-              <span
-                key={benefit}
-                className="px-3 py-1 rounded-full bg-orange-200 text-orange-900 text-xs font-medium"
-              >
-                {benefit}
-              </span>
-            ))}
-          </div>
-
-          {/* Scientific Note */}
-          <div className="p-3 rounded-lg bg-blue-50 border-l-4 border-blue-400 text-xs text-blue-800">
-            <p className="font-semibold mb-1">📊 Optimized for you:</p>
-            <p>
-              Age {settings.age} • {settings.sex === 'male' ? '♂' : '♀'} •
-              Based on presbycusis adjustments for hearing sensitivity
+        {Math.abs(customValue - NEUROPROTECTION_FREQUENCY) < FREQUENCY_MATCH_THRESHOLD && (
+          <div className="p-3 rounded-lg bg-white border-2 border-amber-400">
+            <p className="text-xs font-semibold text-amber-900 mb-1">
+              🧠 40 Hz Neuroprotection Focus
+            </p>
+            <p className="text-xs text-amber-800">
+              40 Hz has the strongest clinical evidence for cognitive support, attention, and neuroprotection. Well-studied across multiple neuroscience research domains.
             </p>
           </div>
+        )}
+
+        <div className="text-xs text-orange-700 space-y-1">
+          <p>δ Delta: 0.5-4 Hz | θ Theta: 6-8 Hz | α Alpha: 8-12 Hz</p>
+          <p>β Beta: 12-30 Hz | γ Gamma: 30-100 Hz (40 Hz ⭐ recommended)</p>
         </div>
       </div>
+
     </div>
   );
 }
