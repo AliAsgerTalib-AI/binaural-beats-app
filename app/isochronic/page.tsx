@@ -53,6 +53,10 @@ export default function IsochronicPage() {
     localStorage.setItem('binaural_settings', JSON.stringify(newSettings));
   };
 
+  const handleCloseSettings = () => {
+    setShowSettings(false);
+  };
+
   const freqData = getFrequenciesFromBeatFrequency(beatFrequency, settings.age, settings.sex);
 
   const handleSessionComplete = () => {
@@ -136,7 +140,7 @@ export default function IsochronicPage() {
           <div className="space-y-8">
             {/* Settings Panel */}
             {showSettings && (
-              <SettingsPanel settings={settings} onSettingsChange={handleSettingsChange} />
+              <SettingsPanel settings={settings} onSettingsChange={handleSettingsChange} onClose={handleCloseSettings} />
             )}
 
             {/* Beat Frequency Selector */}
@@ -150,7 +154,7 @@ export default function IsochronicPage() {
 
             {/* Duration Selector */}
             <div className="p-6 rounded-xl bg-white border-2 border-green-200 shadow-sm">
-              <TimerSelector duration={duration} onDurationChange={setDuration} />
+              <TimerSelector selectedDuration={duration} onDurationChange={setDuration} />
             </div>
 
             {/* Info Note */}
