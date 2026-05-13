@@ -3,6 +3,8 @@
  * Replaces module-level globals with class-based state management
  */
 
+import { dbToLinearGain } from './audioUtils';
+
 export class AudioSynthesizer {
   private audioContext: AudioContext | null = null;
   private oscillators: OscillatorNode[] = [];
@@ -73,7 +75,7 @@ export class AudioSynthesizer {
   public startBinauralBeats(
     leftCarrier: number,
     rightCarrier: number,
-    volume: number = 0.1,
+    volumeDb: number = -20,
     useNoise: boolean = false,
     noiseType: 'pink' | 'brownian' = 'pink',
     fadeIn?: { startLeft: number; startRight: number; duration: number },
@@ -82,9 +84,10 @@ export class AudioSynthesizer {
     const ctx = this.initAudioContext();
     this.stopBinauralBeats();
 
+    const linearGain = dbToLinearGain(volumeDb);
     this.masterGain = ctx.createGain();
     this.masterGain.gain.setValueAtTime(0, ctx.currentTime);
-    this.masterGain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.5);
+    this.masterGain.gain.linearRampToValueAtTime(linearGain, ctx.currentTime + 0.5);
     this.masterGain.connect(ctx.destination);
 
     // Add pink noise if enabled
@@ -126,7 +129,8 @@ export class AudioSynthesizer {
       osc.frequency.setValueAtTime(i === 0 ? leftCarrier : rightCarrier, ctx.currentTime);
 
       const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
 
       const panner = ctx.createStereoPanner();
       panner.pan.setValueAtTime(i === 0 ? -1 : 1, ctx.currentTime);
@@ -164,16 +168,17 @@ export class AudioSynthesizer {
     carrierFreq: number,
     beatFrequency: number,
     duration: number,
-    volume: number = 0.1,
+    volumeDb: number = -20,
     useNoise: boolean = false,
     noiseType: 'pink' | 'brownian' = 'pink'
   ): void {
     const ctx = this.initAudioContext();
     this.stopIsochronicTones();
 
+    const linearGain = dbToLinearGain(volumeDb);
     this.masterGain = ctx.createGain();
     this.masterGain.gain.setValueAtTime(0, ctx.currentTime);
-    this.masterGain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.5);
+    this.masterGain.gain.linearRampToValueAtTime(linearGain, ctx.currentTime + 0.5);
     this.masterGain.connect(ctx.destination);
 
     // Add pink noise if enabled
@@ -220,14 +225,20 @@ export class AudioSynthesizer {
     this.isochronicCarrierOsc.connect(this.isochronicPulseGain);
     this.isochronicPulseGain.connect(this.masterGain);
 
-    // Pre-schedule pulses (50% duty cycle)
+    // Pre-schedule pulses (50% duty cycle) with anti-click ramps
     const period = 1 / beatFrequency;
     const dutyCycle = 0.5;
     const startTime = ctx.currentTime;
+    const rampTime = 0.005; // 5ms smooth ramp to avoid clicks
 
     for (let t = 0; t < duration; t += period) {
-      this.isochronicPulseGain.gain.setValueAtTime(0.3, startTime + t);
-      this.isochronicPulseGain.gain.setValueAtTime(0, startTime + t + period * dutyCycle);
+      const pulseStart = startTime + t;
+      const pulseEnd = pulseStart + period * dutyCycle;
+
+      // Smooth ramp up
+      this.isochronicPulseGain.gain.linearRampToValueAtTime(0.3, pulseStart + rampTime);
+      // Smooth ramp down
+      this.isochronicPulseGain.gain.linearRampToValueAtTime(0, pulseEnd + rampTime);
     }
 
     this.isochronicCarrierOsc.start();
@@ -235,6 +246,11 @@ export class AudioSynthesizer {
 
   public stopBinauralBeats(): void {
     if (!this.masterGain || !this.audioContext) return;
+
+    const fadeOutTime = 0.05;
+    this.gainNodes.forEach((gain) => {
+      gain.gain.linearRampToValueAtTime(0, this.audioContext!.currentTime + fadeOutTime);
+    });
 
     this.masterGain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.5);
 
@@ -278,6 +294,11 @@ export class AudioSynthesizer {
   public stopIsochronicTones(): void {
     if (!this.masterGain || !this.audioContext) return;
 
+    const fadeOutTime = 0.05;
+    if (this.isochronicPulseGain) {
+      this.isochronicPulseGain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + fadeOutTime);
+    }
+
     this.masterGain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.5);
 
     setTimeout(() => {
@@ -316,10 +337,11 @@ export class AudioSynthesizer {
     }, 500);
   }
 
-  public setVolume(volume: number): void {
+  public setVolume(volumeDb: number): void {
     if (!this.masterGain || !this.audioContext) return;
+    const linearGain = dbToLinearGain(volumeDb);
     this.masterGain.gain.linearRampToValueAtTime(
-      Math.max(0, Math.min(1, volume)),
+      linearGain,
       this.audioContext.currentTime + 0.1
     );
   }

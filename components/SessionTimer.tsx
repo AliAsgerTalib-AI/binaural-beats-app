@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { FrequencyBand, AudioMode, FadeConfig, Sex } from '@/lib/types';
 import { frequencyBands, getFrequenciesFromBeatFrequency } from '@/lib/frequencyData';
 import { startBinauralBeats, stopBinauralBeats, startIsochronicTones, stopIsochronicTones, setVolume } from '@/lib/audioSynthesis';
+import { VOLUME_DB_MIN, VOLUME_DB_MAX, VOLUME_DB_DEFAULT } from '@/lib/audioUtils';
 
 interface SessionTimerProps {
   band: FrequencyBand;
@@ -38,7 +39,7 @@ export default function SessionTimer({
 }: SessionTimerProps) {
   const [timeLeft, setTimeLeft] = useState(duration * 60); // in seconds
   const [isPaused, setIsPaused] = useState(false);
-  const [volume, setVolumeState] = useState(0.3); // 30% default
+  const [volumeDb, setVolumeDb] = useState(VOLUME_DB_DEFAULT); // -20 dB default
   const [useNoise, setUseNoise] = useState(false);
   const [noiseType, setNoiseType] = useState<'pink' | 'brownian'>('pink');
 
@@ -116,9 +117,9 @@ export default function SessionTimer({
         fadeOutAudio = { endLeft, endRight, duration: fadeOut.duration * 60, sessionDuration: duration * 60 };
       }
 
-      startBinauralBeats(carrierFrequency, carrierFrequency + beatFrequency, volume, useNoise, noiseType, fadeInAudio, fadeOutAudio);
+      startBinauralBeats(carrierFrequency, carrierFrequency + beatFrequency, volumeDb, useNoise, noiseType, fadeInAudio, fadeOutAudio);
     } else {
-      startIsochronicTones(carrierFrequency, beatFrequency, duration * 60, volume, useNoise, noiseType);
+      startIsochronicTones(carrierFrequency, beatFrequency, duration * 60, volumeDb, useNoise, noiseType);
     }
 
     return () => {
@@ -128,12 +129,12 @@ export default function SessionTimer({
         stopIsochronicTones();
       }
     };
-  }, [isPaused, carrierFrequency, beatFrequency, volume, useNoise, noiseType, audioMode, duration, fadeIn, fadeOut, age, sex]);
+  }, [isPaused, carrierFrequency, beatFrequency, volumeDb, useNoise, noiseType, audioMode, duration, fadeIn, fadeOut, age, sex]);
 
   // Effect: Handle volume changes
   useEffect(() => {
-    setVolume(volume);
-  }, [volume]);
+    setVolume(volumeDb);
+  }, [volumeDb]);
 
   // Effect: Manage timer countdown
   useEffect(() => {
@@ -160,9 +161,9 @@ export default function SessionTimer({
     };
   }, [isPaused, audioMode, onComplete]);
 
-  const handleVolumeChange = (newVolume: number) => {
-    setVolumeState(newVolume);
-    setVolume(newVolume);
+  const handleVolumeChange = (newVolumeDb: number) => {
+    setVolumeDb(newVolumeDb);
+    setVolume(newVolumeDb);
   };
 
   return (
@@ -239,25 +240,27 @@ export default function SessionTimer({
       {/* Volume Control */}
       <div className="space-y-3">
         <label className="block text-sm font-semibold text-amber-900 uppercase tracking-wider">
-          Volume: {Math.round(volume * 100)}%
+          Volume: {volumeDb} dB
         </label>
         <input
           type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          value={volume}
+          min={VOLUME_DB_MIN}
+          max={VOLUME_DB_MAX}
+          step="1"
+          value={volumeDb}
           onChange={(e) => handleVolumeChange(Number(e.target.value))}
           disabled={isPaused}
           className="w-full h-2 bg-orange-200 rounded-lg appearance-none cursor-pointer"
           style={{
             background: `linear-gradient(to right, #d97745 0%, #e89968 ${
-              volume * 100
-            }%, #fed7aa ${volume * 100}%, #fed7aa 100%)`,
+              ((volumeDb - VOLUME_DB_MIN) / (VOLUME_DB_MAX - VOLUME_DB_MIN)) * 100
+            }%, #fed7aa ${
+              ((volumeDb - VOLUME_DB_MIN) / (VOLUME_DB_MAX - VOLUME_DB_MIN)) * 100
+            }%, #fed7aa 100%)`,
           }}
         />
         <p className="text-xs text-amber-700">
-          Recommended: 40-50% for comfort. Range: 0-100%
+          Recommended: -20 to -10 dB for comfort. Range: -60 to 0 dB
         </p>
       </div>
 

@@ -30,7 +30,9 @@
       "Bash(curl -s http://localhost:3000/sw.js)",
       "Bash(curl -s http://localhost:3000/offline.html)",
       "PowerShell(taskkill *)",
-      "Bash(dir /B)"
+      "Bash(dir /B)",
+      "Bash(Start-Sleep -Seconds 5)",
+      "Bash(Get-Content 'C:\\\\Users\\\\alias\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-alias-OneDrive-AI-Projects-Bianural-binaural-beats-app\\\\299a683b-b3a6-4cfa-9369-5a964bc49247\\\\tasks\\\\btfs90rev.output' -Tail 20)"
     ]
   }
 }

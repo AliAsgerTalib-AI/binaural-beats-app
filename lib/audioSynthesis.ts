@@ -9,13 +9,13 @@ import { synthesizer } from './AudioSynthesizer';
 export const startBinauralBeats = (
   leftCarrier: number,
   rightCarrier: number,
-  volume: number = 0.1,
+  volumeDb: number = -20,
   useNoise: boolean = false,
   noiseType: 'pink' | 'brownian' = 'pink',
   fadeIn?: { startLeft: number; startRight: number; duration: number },
   fadeOut?: { endLeft: number; endRight: number; duration: number; sessionDuration: number }
 ): (() => void) => {
-  synthesizer.startBinauralBeats(leftCarrier, rightCarrier, volume, useNoise, noiseType, fadeIn, fadeOut);
+  synthesizer.startBinauralBeats(leftCarrier, rightCarrier, volumeDb, useNoise, noiseType, fadeIn, fadeOut);
   return stopBinauralBeats;
 };
 
@@ -23,11 +23,11 @@ export const startIsochronicTones = (
   carrierFreq: number,
   beatFrequency: number,
   duration: number,
-  volume: number = 0.1,
+  volumeDb: number = -20,
   useNoise: boolean = false,
   noiseType: 'pink' | 'brownian' = 'pink'
 ): (() => void) => {
-  synthesizer.startIsochronicTones(carrierFreq, beatFrequency, duration, volume, useNoise, noiseType);
+  synthesizer.startIsochronicTones(carrierFreq, beatFrequency, duration, volumeDb, useNoise, noiseType);
   return stopIsochronicTones;
 };
 
